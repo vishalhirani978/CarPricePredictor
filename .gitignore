@@ -1,0 +1,4 @@
+*.pkl
+flask_output.txt
+NUL
+__pycache__/
