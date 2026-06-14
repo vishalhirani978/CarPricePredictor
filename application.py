@@ -1,11 +1,36 @@
 from flask import Flask, render_template, request
 import pandas as pd
 import pickle
+import os
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import make_column_transformer
+from sklearn.pipeline import make_pipeline
 
 app = Flask(__name__)
 
+
+def train_model():
+    car = pd.read_csv('cleanedCar.csv')
+    
+    X = car[['name', 'company', 'year', 'kms_driven', 'fuel_type']]
+    y = car['Price']
+
+    ohe = OneHotEncoder()
+    ohe.fit(X[['name', 'company', 'fuel_type']])
+
+    column_trans = make_column_transformer(
+        (OneHotEncoder(categories=ohe.categories_), ['name', 'company', 'fuel_type']),
+        remainder='passthrough'
+    )
+
+    lr = LinearRegression()
+    pipe = make_pipeline(column_trans, lr)
+    pipe.fit(X, y)
+    return pipe
+
 car = pd.read_csv('cleanedCar.csv')
-model = pickle.load(open('LinearRegressionModel.pkl', 'rb'))
+model = train_model()
 
 @app.route('/')
 def index():
@@ -23,8 +48,10 @@ def predict():
     fuel_type = request.form.get('fuel_type')
     kms_driven = int(request.form.get('kms_driven'))
 
-    prediction = model.predict(pd.DataFrame([[car_model, company, year, kms_driven, fuel_type]],
-                                            columns=['name', 'company', 'year', 'kms_driven', 'fuel_type']))
+    prediction = model.predict(pd.DataFrame(
+        [[car_model, company, year, kms_driven, fuel_type]],
+        columns=['name', 'company', 'year', 'kms_driven', 'fuel_type']
+    ))
     return str(round(prediction[0], 2))
 
 if __name__ == '__main__':
